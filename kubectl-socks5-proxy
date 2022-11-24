@@ -84,7 +84,7 @@ run_proxy(){
   kubectl --context "${context}" --namespace "${namespace}" port-forward "${podname}" "${port}:1080"
 }
 
-plugin_main() {
+main() {
   local skip_pod_deletion restart
   local namespace port image podname context
 
@@ -169,5 +169,5 @@ plugin_main() {
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
 then
-  plugin_main "$@"
+  main "$@"
 fi
