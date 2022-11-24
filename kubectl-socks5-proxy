@@ -38,6 +38,9 @@ Options:
   -i, --image <socks5 image>    Set the image used as SOCKS5 proxy server
                                 Default: ${DEFAULT_IMAGE}
 
+  --restart                     Automatically restart the proxy on failure
+                                Default: SOCKS5 proxy only get started once
+
   --skip-cleanup                Skip cleanup of the SOCKS5 proxy pod
                                 Default: Delete SOCKS5 proxy pod at the end
 
@@ -56,6 +59,7 @@ run_proxy(){
   local namespace="$2"
   local port="$3"
   local image="$4"
+  local podname="$5"
   local r
 
   # Install an SOCKS5 proxy server if not yet installed
@@ -98,7 +102,7 @@ EOF
 }
 
 plugin_main() {
-  local skip_pod_deletion
+  local skip_pod_deletion restart
   local namespace port image podname context
 
   while [[ $# -gt 0 ]]
@@ -107,6 +111,10 @@ plugin_main() {
       -h|--help)
         help
         exit 0
+        ;;
+      --restart)
+        restart=1
+        shift
         ;;
       --skip-cleanup)
         skip_pod_deletion=1
@@ -156,7 +164,15 @@ plugin_main() {
 
   echo "using: context=\"${context}\" namespace=\"${namespace}\" port=\"${port}\" name=\"${podname}\" image=\"${image}\""
 
-  run_proxy "${context}" "${namespace}" "${port}" "${image}"
+  if [[ -n "$restart" ]]
+  then
+    while sleep 1
+    do
+      run_proxy "${context}" "${namespace}" "${port}" "${image}" "${podname}"
+    done
+  else
+    run_proxy "${context}" "${namespace}" "${port}" "${image}" "${podname}"
+  fi
 
   # Cleaning up SOCKS5 proxy server if needed
   if [[ -z "${skip_pod_deletion}" ]]
