@@ -74,11 +74,11 @@ run_proxy(){
   kubectl --context "$context" --namespace "$namespace" \
     wait --for=condition=Ready --timeout=60s "$podname" >/dev/null
 
-  echo "Starting a local SOCKS5 Proxy (localhost:${port})..."
-  echo ""
-  echo "The proxy Pod can be cleaned up with ^C (if not in background),"
-  echo "or with a command \"kubectl --context \"${context}\" delete pod  -n \"${namespace}\" \"${podname}\"\""
-  echo ""
+  echo "Forwaring SOCKS5 Proxy to localhost:${port}..."
+  echo
+  echo "To delete the pod run the following command:"
+  echo "$ \"kubectl --context \"${context}\" delete pod  -n \"${namespace}\" \"${podname}\"\""
+  echo
 
   # Setup portforward
   kubectl --context "${context}" --namespace "${namespace}" port-forward "${podname}" "${port}:1080"
