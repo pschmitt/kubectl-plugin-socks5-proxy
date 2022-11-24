@@ -59,33 +59,17 @@ run_proxy(){
   local port="$3"
   local image="$4"
   local podname="$5"
-  local r
 
-  # Install an SOCKS5 proxy server if not yet installed
-  r=$(kubectl --context "${context}" get pod "${podname}" --namespace "${namespace}" 2>/dev/null | tail -1 | awk '{print $1}')
+  echo "Creating SOCKS5 Proxy (Pod)..."
 
-  if [[ "${r}" != "${podname}" ]]
-  then
-    echo "Creating SOCKS5 Proxy (Pod)..."
-    cat <<EOF | kubectl --context "${context}" apply --namespace "${namespace}" -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ${podname}
-  labels:
-    env: test
-    owner: ${USER}
-spec:
-  containers:
-  - name: ${podname}
-    image: ${image}
-    ports:
-    - containerPort: 1080
-  nodeSelector:
-    "kubernetes.io/os": linux
-EOF
-
-  fi
+  # shellcheck disable=2064
+  trap "kubectl --context '$context' delete pod -n '$namespace' '$podname' --wait=false >&2" EXIT
+  kubectl --context "$context" run --namespace "$namespace" \
+    --restart=Never --grace-period=1 --force=true \
+    --port 1080 \
+    --labels=owner="${USER}",purpose=debug \
+    --image "$image" \
+    "$podname"
 
   kubectl --context "$context" --namespace "$namespace" \
     wait --for=condition=Ready --timeout=60s "$podname" >/dev/null
