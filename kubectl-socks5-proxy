@@ -169,6 +169,7 @@ plugin_main() {
     while sleep 1
     do
       run_proxy "${context}" "${namespace}" "${port}" "${image}" "${podname}"
+      echo "The proxy died. Restarting..." >&2
     done
   else
     run_proxy "${context}" "${namespace}" "${port}" "${image}" "${podname}"
