@@ -8,7 +8,6 @@
 # shellcheck disable=2001
 DEFAULT_PODNAME=$(sed -e 's/[^[:alnum:]|-]//g' <<< "socks5-proxy-${USER:-$(date '+%s')}" | tr '[:upper:]' '[:lower:]')
 DEFAULT_PORT=1080
-DEFAULT_PODNAMESPACE=default
 DEFAULT_IMAGE=serjs/go-socks5-proxy
 
 help(){
@@ -25,7 +24,7 @@ Options:
                                 Default: Current context
 
   -n, --namespace <namespace>   Namespace to create SOCKS5 proxy server in
-                                Default: ${DEFAULT_PODNAMESPACE}
+                                Default: Current namespace (or default)
 
   -p, --port <local port>       Local port to be forwarded to the SOCKS5 proxy server (Pod)
                                 A client connects to this port, then the connection is forwarded to the
@@ -156,8 +155,10 @@ plugin_main() {
     exit 1
   fi
 
+  local DEFAULT_NAMESPACE
+  DEFAULT_NAMESPACE=$(kubectl config view --minify --output 'jsonpath={..namespace}')
   context=${context:-$(kubectl config current-context)}
-  namespace=${namespace:-${DEFAULT_PODNAMESPACE}}
+  namespace=${namespace:-${DEFAULT_NAMESPACE:-default}}
   port=${port:-${DEFAULT_PORT}}
   image=${image:-${DEFAULT_IMAGE}}
   podname=${podname:-${DEFAULT_PODNAME}}
