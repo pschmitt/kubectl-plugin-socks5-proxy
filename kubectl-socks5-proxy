@@ -49,7 +49,7 @@ EOF
 
 cleanup_proxy(){
   local context="$1" namespace="$2" podname="$3"
-  echo "Clearning up SOCKS5 proxy server (Pod)..."
+  echo "Cleaning up SOCKS5 proxy server (Pod)..."
   kubectl --context "$context" delete pod "${podname}" --namespace "${namespace}"
 }
 
