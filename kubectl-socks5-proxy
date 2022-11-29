@@ -60,24 +60,32 @@ run_proxy(){
   local image="$4"
   local podname="$5"
 
+  local labels="owner=${USER},purpose=debug,app=socks5-proxy"
+
   echo "Creating SOCKS5 Proxy (Pod)..."
 
+  # Delete previous pods
+  kubectl --context "$context" --namespace "$namespace" delete pod -l "$labels" --wait=false
+
+  # Clean up on exit
   # shellcheck disable=2064
   trap "kubectl --context '$context' delete pod -n '$namespace' '$podname' --wait=false >&2" EXIT
+
+  # Start proxy pod
   kubectl --context "$context" run --namespace "$namespace" \
     --restart=Never --grace-period=1 --force=true \
     --port 1080 \
-    --labels=owner="${USER}",purpose=debug \
+    --labels="$labels" \
     --image "$image" \
     "$podname"
 
   kubectl --context "$context" --namespace "$namespace" \
-    wait --for=condition=Ready --timeout=60s "$podname" >/dev/null
+    wait --for=condition=Ready --timeout=60s pod "$podname" >/dev/null
 
   echo "Forwaring SOCKS5 Proxy to localhost:${port}..."
   echo
   echo "To delete the pod run the following command:"
-  echo "$ \"kubectl --context \"${context}\" delete pod  -n \"${namespace}\" \"${podname}\"\""
+  echo "$ kubectl --context \"${context}\" delete pod  -n \"${namespace}\" \"${podname}\""
   echo
 
   # Setup portforward
@@ -141,6 +149,7 @@ main() {
 
   local DEFAULT_NAMESPACE
   DEFAULT_NAMESPACE=$(kubectl config view --minify --output 'jsonpath={..namespace}')
+
   context=${context:-$(kubectl config current-context)}
   namespace=${namespace:-${DEFAULT_NAMESPACE:-default}}
   port=${port:-${DEFAULT_PORT}}
