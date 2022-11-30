@@ -9,6 +9,7 @@
 DEFAULT_PODNAME=$(sed -e 's/[^[:alnum:]|-]//g' <<< "socks5-proxy-${USER:-$(date '+%s')}" | tr '[:upper:]' '[:lower:]')
 DEFAULT_PORT=1080
 DEFAULT_IMAGE=serjs/go-socks5-proxy
+DEFAULT_ADDRESS=localhost
 
 help(){
   echo "Usage: "
@@ -25,6 +26,9 @@ Options:
 
   -n, --namespace <namespace>   Namespace to create SOCKS5 proxy server in
                                 Default: Current namespace (or default)
+
+  -a, --address <address>       Address to bind to for the port-forward
+                                Default: ${DEFAULT_ADDRESS}
 
   -p, --port <local port>       Local port to be forwarded to the SOCKS5 proxy server (Pod)
                                 A client connects to this port, then the connection is forwarded to the
@@ -53,12 +57,13 @@ cleanup_proxy(){
   kubectl --context "$context" delete pod "${podname}" --namespace "${namespace}"
 }
 
-run_proxy(){
+start_proxy_pod(){
   local context="$1"
   local namespace="$2"
-  local port="$3"
-  local image="$4"
-  local podname="$5"
+  local address="$3"
+  local port="$4"
+  local image="$5"
+  local podname="$6"
 
   local labels="owner=${USER},purpose=debug,app=socks5-proxy"
 
@@ -89,12 +94,13 @@ run_proxy(){
   echo
 
   # Setup portforward
-  kubectl --context "${context}" --namespace "${namespace}" port-forward "${podname}" "${port}:1080"
+  kubectl --context "${context}" --namespace "${namespace}" \
+    port-forward --address="${address}" "${podname}" "${port}:1080"
 }
 
 main() {
   local skip_pod_deletion restart
-  local namespace port image podname context
+  local context namespace address port image podname
 
   while [[ $# -gt 0 ]]
   do
@@ -117,6 +123,10 @@ main() {
         ;;
       -n|--namespace)
         namespace="$2"
+        shift 2
+        ;;
+      -a|-address)
+        address="$2"
         shift 2
         ;;
       -p|--port)
@@ -152,21 +162,27 @@ main() {
 
   context=${context:-$(kubectl config current-context)}
   namespace=${namespace:-${DEFAULT_NAMESPACE:-default}}
+  address=${address:-${DEFAULT_ADDRESS}}
   port=${port:-${DEFAULT_PORT}}
   image=${image:-${DEFAULT_IMAGE}}
   podname=${podname:-${DEFAULT_PODNAME}}
 
-  echo "using: context=\"${context}\" namespace=\"${namespace}\" port=\"${port}\" name=\"${podname}\" image=\"${image}\""
+  echo "$(basename "$0") parameters:" >&2
+  for param in context namespace address port podname image
+  do
+    echo "  - ${param}=\"${!param}\""
+  done
+  # context=\"${context}\" namespace=\"${namespace}\" address=\"${address}\" port=\"${port}\" name=\"${podname}\" image=\"${image}\""
 
   if [[ -n "$restart" ]]
   then
     while sleep 1
     do
-      run_proxy "${context}" "${namespace}" "${port}" "${image}" "${podname}"
+      start_proxy_pod "${context}" "${namespace}" "${address}" "${port}" "${image}" "${podname}"
       echo "The proxy died. Restarting..." >&2
     done
   else
-    run_proxy "${context}" "${namespace}" "${port}" "${image}" "${podname}"
+    start_proxy_pod "${context}" "${namespace}" "${address}" "${port}" "${image}" "${podname}"
   fi
 
   # Cleaning up SOCKS5 proxy server if needed
