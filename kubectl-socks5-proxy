@@ -78,7 +78,7 @@ start_proxy_pod(){
 
   # Start proxy pod
   kubectl --context "$context" run --namespace "$namespace" \
-    --restart=Never --grace-period=1 --force=true \
+    --restart=Never \
     --port 1080 \
     --labels="$labels" \
     --image "$image" \
