@@ -3,14 +3,6 @@
 # A kubectl plugin that creates a local SOCKS5 proxy through which you can access to pods/services in a Kubernetes cluster
 #
 
-[[ -n "$DEBUG" ]] && set -x -e
-
-# shellcheck disable=2001
-DEFAULT_PODNAME=$(sed -e 's/[^[:alnum:]|-]//g' <<< "socks5-proxy-${USER:-$(date '+%s')}" | tr '[:upper:]' '[:lower:]')
-DEFAULT_PORT=1080
-DEFAULT_IMAGE=serjs/go-socks5-proxy
-DEFAULT_ADDRESS=localhost
-
 help(){
   echo "Usage: "
   echo "  kubectl socks5-proxy"
@@ -49,6 +41,12 @@ Options:
 
   -h, --help                    Show this message
 EOF
+}
+
+random_string() {
+  local length=${1:-10}
+  sed 's/[-]//g' /proc/sys/kernel/random/uuid | head -c "$length"
+  echo
 }
 
 cleanup_proxy(){
@@ -194,5 +192,15 @@ main() {
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
 then
+  [[ -n "$DEBUG" ]] && set -x -e
+
+  # Ensure $USER is set
+  USER="${USER:-$(random_string 10)$(date '+%s')}"
+  # shellcheck disable=2001
+  DEFAULT_PODNAME=$(sed -e 's/[^[:alnum:]|-]//g' <<< "socks5-proxy-${USER:-$(date '+%s')}" | tr '[:upper:]' '[:lower:]')
+  DEFAULT_PORT=1080
+  DEFAULT_IMAGE=serjs/go-socks5-proxy
+  DEFAULT_ADDRESS=localhost
+
   main "$@"
 fi
