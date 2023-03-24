@@ -205,8 +205,8 @@ then
   # shellcheck disable=2001
   DEFAULT_PODNAME=$(sed -e 's/[^[:alnum:]|-]//g' <<< "socks5-proxy-${USER:-$(date '+%s')}" | tr '[:upper:]' '[:lower:]')
   DEFAULT_PORT=1080
-  DEFAULT_IMAGE=serjs/go-socks5-proxy
-  DEFAULT_POD_PORT=1080
+  DEFAULT_POD_PORT=7890
+  DEFAULT_IMAGE=dreamacro/clash
   DEFAULT_ADDRESS=localhost
 
   main "$@"
