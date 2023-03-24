@@ -75,6 +75,18 @@ start_proxy_pod(){
   # shellcheck disable=2064
   trap "kubectl --context '$context' delete pod -n '$namespace' '$podname' --wait=false >&2" EXIT
 
+  local extra_args=()
+  case "$image" in
+    dreamacro/clash)
+      # Override command if using clash
+      # By default clash only listens on localhost:7890
+      # We need to listen on all interfaces and change the port
+      extra_args=(--command -- sh -c
+        'echo -e "mixed-port: 1080\nbind-address: \"*\"\nallow-lan: true" > /config.yaml;
+         exec /clash -f config.yaml'
+       )
+  esac
+
   # Start proxy pod
   kubectl --context "$context" run \
     --namespace "$namespace" \
@@ -82,7 +94,8 @@ start_proxy_pod(){
     --port "$port" \
     --labels="$labels" \
     --image "$image" \
-    "$podname"
+    "$podname" \
+    "${extra_args[@]}"
 
   kubectl --context "$context" --namespace "$namespace" \
     wait --for=condition=Ready --timeout=60s pod "$podname" >/dev/null
@@ -198,14 +211,14 @@ main() {
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
 then
-  [[ -n "$DEBUG" ]] && set -x -e
+  [[ -n "${DEBUG}${DEBOG}" ]] && set -x -e
 
   # Ensure $USER is set
   USER="${USER:-$(random_string 10)$(date '+%s')}"
   # shellcheck disable=2001
   DEFAULT_PODNAME=$(sed -e 's/[^[:alnum:]|-]//g' <<< "socks5-proxy-${USER:-$(date '+%s')}" | tr '[:upper:]' '[:lower:]')
   DEFAULT_PORT=1080
-  DEFAULT_POD_PORT=7890
+  DEFAULT_POD_PORT=1080
   DEFAULT_IMAGE=dreamacro/clash
   DEFAULT_ADDRESS=localhost
 
