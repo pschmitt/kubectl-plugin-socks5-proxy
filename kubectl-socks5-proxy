@@ -199,6 +199,7 @@ main() {
   image=${image:-${DEFAULT_IMAGE}}
   image_pull_secret=${image_pull_secret:-${IMAGE_PULL_SECRET}}
   podname=${podname:-${DEFAULT_PODNAME}}
+  restart=${restart:-${RESTART}}
 
   echo "$(basename "$0") parameters:" >&2
   for param in context namespace address port podname image
@@ -233,7 +234,7 @@ main() {
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
 then
-  [[ -n "${DEBUG}${DEBOG}" ]] && set -x -e
+  [[ -n "${DEBUG}${DEBOG}" ]] && set -x
 
   # Ensure $USER is set
   USER="${USER:-$(random_string 10)$(date '+%s')}"
@@ -244,6 +245,7 @@ then
   DEFAULT_IMAGE="${DEFAULT_IMAGE:-dreamacro/clash}"
   DEFAULT_ADDRESS=localhost
   IMAGE_PULL_SECRET="${IMAGE_PULL_SECRET:-}"
+  RESTART="${RESTART:-}"
 
   main "$@"
 fi
