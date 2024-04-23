@@ -114,7 +114,7 @@ start_proxy_pod(){
   echo "Forwaring SOCKS5 Proxy to localhost:${port}..."
   echo
   echo "To delete the pod run the following command:"
-  echo "$ kubectl --context \"${context}\" delete pod  -n \"${namespace}\" \"${podname}\""
+  echo "$ kubectl --context \"${context}\" delete pod -n \"${namespace}\" \"${podname}\""
   echo
 
   # Setup portforward
