@@ -81,7 +81,7 @@ start_proxy_pod(){
 
   local extra_args1=()
   case "$image" in
-    dreamacro/clash)
+    *dreamacro/clash)
       # Override command if using clash
       # By default clash only listens on localhost:7890
       # We need to listen on all interfaces and change the port
