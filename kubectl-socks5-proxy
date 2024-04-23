@@ -5,41 +5,44 @@
 
 usage(){
   echo "Usage: "
-  echo "  kubectl socks5-proxy"
+  echo "  $(basename "$0") [options]"
   echo ""
   cat << EOF
 Options:
-  -c, --context <namespace>     Kubernetes context to create SOCKS5 proxy server in
-                                Default: Current context
+  -c, --context NAMESPACE        Kubernetes context to create SOCKS5 proxy server in
+                                 Default: Current context
 
-  -n, --namespace <namespace>   Namespace to create SOCKS5 proxy server in
-                                Default: Current namespace (or default)
+  -n, --namespace NAMESPACE      Namespace to create SOCKS5 proxy server in
+                                 Default: Current namespace (or default)
 
-  -a, --address <address>       Address to bind to for the port-forward
-                                Default: ${DEFAULT_ADDRESS}
+  -a, --address ADDRESS          Address to bind to for the port-forward
+                                 Default: ${DEFAULT_ADDRESS}
 
-  -p, --port <local port>       Local port to be forwarded to the SOCKS5 proxy server (Pod)
-                                A client connects to this port, then the connection is forwarded to the
-                                SOCKS5 proxy server, which is then forwareded to the destination server
-                                Default: ${DEFAULT_PORT}
+  -p, --port  PORT               Local port to be forwarded to the SOCKS5 proxy server (Pod)
+                                 A client connects to this port, then the connection is forwarded to the
+                                 SOCKS5 proxy server, which is then forwareded to the destination server
+                                 Default: ${DEFAULT_PORT}
 
-  -P, --pod-port <pod port>     Remote port of the socks5 proxy running in the pod.
-                                The local port (-p <local port>) gets forwarded to pod:<pod port>
-                                Default: ${DEFAULT_POD_PORT}
+  -P, --pod-port PORT            Remote port of the socks5 proxy running in the pod.
+                                 The local port (-p <local port>) gets forwarded to pod:<pod port>
+                                 Default: ${DEFAULT_POD_PORT}
 
-  -N, --name <pod name>         Name to give the pod in the cluster
-                                Default: ${DEFAULT_PODNAME}
+  -N, --name NAME                Name to give the pod in the cluster
+                                 Default: ${DEFAULT_PODNAME}
 
-  -i, --image <socks5 image>    Set the image used as SOCKS5 proxy server
-                                Default: ${DEFAULT_IMAGE}
+  -i, --image IMAGE              Set the image used as SOCKS5 proxy server
+                                 Default: ${DEFAULT_IMAGE}
 
-  --restart                     Automatically restart the proxy on failure
-                                Default: SOCKS5 proxy only get started once
+  -I, --image-pull-secret SECRET Set the image used as SOCKS5 proxy server
+                                 Default: ${DEFAULT_IMAGE}
 
-  --skip-cleanup                Skip cleanup of the SOCKS5 proxy pod
-                                Default: Delete SOCKS5 proxy pod at the end
+  --restart                      Automatically restart the proxy on failure
+                                 Default: SOCKS5 proxy only get started once
 
-  -h, --help                    Show this message
+  --skip-cleanup                 Skip cleanup of the SOCKS5 proxy pod
+                                 Default: Delete SOCKS5 proxy pod at the end
+
+  -h, --help                     Show this message
 EOF
 }
 
@@ -61,8 +64,9 @@ start_proxy_pod(){
   local address="$3"
   local port="$4"
   local image="$5"
-  local podname="$6"
-  local podport="${7:1080}"
+  local image_pull_secret="$6"
+  local podname="$7"
+  local podport="${8:1080}"
 
   local labels="owner=${USER},purpose=debug,app=socks5-proxy"
 
@@ -75,17 +79,23 @@ start_proxy_pod(){
   # shellcheck disable=2064
   trap "kubectl --context '$context' delete pod -n '$namespace' '$podname' --wait=false >&2" EXIT
 
-  local extra_args=()
+  local extra_args1=()
   case "$image" in
     dreamacro/clash)
       # Override command if using clash
       # By default clash only listens on localhost:7890
       # We need to listen on all interfaces and change the port
-      extra_args=(--command -- sh -c
+      extra_args1=(--command -- sh -c
         'echo -e "mixed-port: 1080\nbind-address: \"*\"\nallow-lan: true" > /config.yaml;
          exec /clash -f config.yaml'
        )
   esac
+
+  local extra_args2=()
+  if [[ -n "$image_pull_secret" ]]
+  then
+    extra_args2+=(--overrides='{"spec":{"imagePullSecrets":[{"name":"'"${image_pull_secret}"'"}]}}')
+  fi
 
   # Start proxy pod
   kubectl --context "$context" run \
@@ -94,8 +104,9 @@ start_proxy_pod(){
     --port "$port" \
     --labels="$labels" \
     --image "$image" \
+    "${extra_args1[@]}" \
     "$podname" \
-    "${extra_args[@]}"
+    "${extra_args2[@]}"
 
   kubectl --context "$context" --namespace "$namespace" \
     wait --for=condition=Ready --timeout=60s pod "$podname" >/dev/null
@@ -158,6 +169,10 @@ main() {
         image="$2"
         shift 2
         ;;
+      -I|--image-pull-secret)
+        image_pull_secret="$2"
+        shift 2
+        ;;
       *)
         usage >&2
         exit 2
@@ -182,6 +197,7 @@ main() {
   address=${address:-${DEFAULT_ADDRESS}}
   port=${port:-${DEFAULT_PORT}}
   image=${image:-${DEFAULT_IMAGE}}
+  image_pull_secret=${image_pull_secret:-${IMAGE_PULL_SECRET}}
   podname=${podname:-${DEFAULT_PODNAME}}
 
   echo "$(basename "$0") parameters:" >&2
@@ -195,11 +211,17 @@ main() {
   then
     while sleep 1
     do
-      start_proxy_pod "${context}" "${namespace}" "${address}" "${port}" "${image}" "${podname}" "${podport}"
+      start_proxy_pod "${context}" "${namespace}" \
+        "${address}" "${port}" \
+        "${image}" "${image_pull_secret}" \
+        "${podname}" "${podport}"
       echo "The proxy died. Restarting..." >&2
     done
   else
-    start_proxy_pod "${context}" "${namespace}" "${address}" "${port}" "${image}" "${podname}" "${podport}"
+    start_proxy_pod "${context}" "${namespace}" \
+      "${address}" "${port}" \
+      "${image}" "${image_pull_secret}" \
+      "${podname}" "${podport}"
   fi
 
   # Cleaning up SOCKS5 proxy server if needed
@@ -221,6 +243,7 @@ then
   DEFAULT_POD_PORT=1080
   DEFAULT_IMAGE=dreamacro/clash
   DEFAULT_ADDRESS=localhost
+  IMAGE_PULL_SECRET="${IMAGE_PULL_SECRET:-}"
 
   main "$@"
 fi
