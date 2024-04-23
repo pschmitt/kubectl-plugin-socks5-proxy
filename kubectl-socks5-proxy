@@ -104,9 +104,9 @@ start_proxy_pod(){
     --port "$port" \
     --labels="$labels" \
     --image "$image" \
-    "${extra_args1[@]}" \
+    "${extra_args2[@]}" \
     "$podname" \
-    "${extra_args2[@]}"
+    "${extra_args1[@]}"
 
   kubectl --context "$context" --namespace "$namespace" \
     wait --for=condition=Ready --timeout=60s pod "$podname" >/dev/null
