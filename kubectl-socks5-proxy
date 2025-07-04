@@ -66,7 +66,7 @@ start_proxy_pod(){
   local image="$5"
   local image_pull_secret="$6"
   local podname="$7"
-  local podport="${8:1080}"
+  local podport="${8:-1080}"
 
   local labels="owner=${USER},purpose=debug,app=socks5-proxy"
 
@@ -111,7 +111,7 @@ start_proxy_pod(){
   kubectl --context "$context" --namespace "$namespace" \
     wait --for=condition=Ready --timeout=60s pod "$podname" >/dev/null
 
-  echo "Forwaring SOCKS5 Proxy to localhost:${port}..."
+  echo "Forwaring SOCKS5 Proxy port $podport to localhost:${port}..."
   echo
   echo "To delete the pod run the following command:"
   echo "$ kubectl --context \"${context}\" delete pod -n \"${namespace}\" \"${podname}\""
@@ -196,13 +196,14 @@ main() {
   namespace=${namespace:-${DEFAULT_NAMESPACE:-default}}
   address=${address:-${DEFAULT_ADDRESS}}
   port=${port:-${DEFAULT_PORT}}
+  podport=${podport:-${DEFAULT_POD_PORT}}
   image=${image:-${DEFAULT_IMAGE}}
   image_pull_secret=${image_pull_secret:-${IMAGE_PULL_SECRET}}
   podname=${podname:-${DEFAULT_PODNAME}}
   restart=${restart:-${RESTART}}
 
   echo "$(basename "$0") parameters:" >&2
-  for param in context namespace address port podname image
+  for param in context namespace address port podname podport image
   do
     echo "  - ${param}=\"${!param}\""
   done
