@@ -117,7 +117,7 @@ start_proxy_pod(){
   echo "$ kubectl --context \"${context}\" delete pod -n \"${namespace}\" \"${podname}\""
   echo
 
-  # Setup portforward
+  # Setup port forwarding
   kubectl --context "${context}" --namespace "${namespace}" \
     port-forward --address="${address}" "${podname}" "${port}:${podport}"
 }
@@ -207,7 +207,6 @@ main() {
   do
     echo "  - ${param}=\"${!param}\""
   done
-  # context=\"${context}\" namespace=\"${namespace}\" address=\"${address}\" port=\"${port}\" name=\"${podname}\" image=\"${image}\""
 
   if [[ -n "$restart" ]]
   then
